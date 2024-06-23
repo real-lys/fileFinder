@@ -2,11 +2,15 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
+)
+
+var (
+	ErrCannotOpen = errors.New("Cannot open the dir")
 )
 
 var matches int = 0
@@ -34,24 +38,26 @@ func main() {
 	fmt.Println(time.Since(start)) //总共用时
 }
 
-func finder(path string, query string) {
+func finder(path string, query string) error {
 	files, err := os.ReadDir(path)
-	if err == nil {
-		for _, file := range files {
-			filename := file.Name()
-			if filename == query {
-				matches++ //搜索到的文件数量+1
-				var wg sync.WaitGroup
-				wg.Add(1)
-				go func() {
-					fmt.Println(path + filename)
-					wg.Done()
-				}()
-				wg.Wait()
-			}
-			if file.IsDir() {
-				finder(path+filename+"/", query) //如果file为目录，则递归搜索目录
-			}
+	if err != nil {
+		return fmt.Errorf("finder->%w %w", err, ErrCannotOpen)
+	}
+
+	for _, file := range files {
+		filename := file.Name()
+		if filename == query {
+			matches++ //搜索到的文件数量+1
+			go printPath(path, filename)
+		}
+
+		if file.IsDir() {
+			finder(path+filename+"/", query) //如果file为目录，则递归搜索目录
 		}
 	}
+	return nil
+}
+
+func printPath(path string, filename string) {
+	fmt.Println(path + filename)
 }
